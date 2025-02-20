@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"io/ioutil"
 	"os"
 	"path"
@@ -29,13 +30,13 @@ func (b *CLIProfileCredentialsProviderBuilder) WithProfileName(profileName strin
 func (b *CLIProfileCredentialsProviderBuilder) Build() (provider *CLIProfileCredentialsProvider, err error) {
 	// 优先级：
 	// 1. 使用显示指定的 profileName
-	// 2. 使用环境变量（ALIBABA_CLOUD_PROFILE）制定的 profileName
+	// 2. 使用环境变量（xx_PROFILE）制定的 profileName
 	// 3. 使用 CLI 配置中的当前 profileName
 	if b.provider.profileName == "" {
-		b.provider.profileName = os.Getenv("ALIBABA_CLOUD_PROFILE")
+		b.provider.profileName = os.Getenv(configure.EnvPrefix + "PROFILE")
 	}
 
-	if strings.ToLower(os.Getenv("ALIBABA_CLOUD_CLI_PROFILE_DISABLED")) == "true" {
+	if strings.ToLower(os.Getenv(configure.EnvPrefix+"CLI_PROFILE_DISABLED")) == "true" {
 		err = errors.New("the CLI profile is disabled")
 		return
 	}
@@ -186,8 +187,9 @@ func (provider *CLIProfileCredentialsProvider) GetCredentials() (cc *Credentials
 			err = fmt.Errorf("cannot found home dir")
 			return
 		}
+		var filePath = configure.ConfigStorePath[1:]
 
-		cfgPath := path.Join(homedir, ".aliyun/config.json")
+		cfgPath := path.Join(homedir, filePath)
 
 		conf, err1 := newConfigurationFromPath(cfgPath)
 		if err1 != nil {

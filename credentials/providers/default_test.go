@@ -2,6 +2,7 @@ package providers
 
 import (
 	"errors"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"path"
 	"testing"
@@ -28,16 +29,16 @@ func TestDefaultCredentialsProvider(t *testing.T) {
 	assert.True(t, ok)
 
 	// Add oidc provider
-	rollback := utils.Memory("ALIBABA_CLOUD_OIDC_TOKEN_FILE",
-		"ALIBABA_CLOUD_OIDC_PROVIDER_ARN",
-		"ALIBABA_CLOUD_ROLE_ARN",
-		"ALIBABA_CLOUD_ECS_METADATA",
-		"ALIBABA_CLOUD_CREDENTIALS_URI")
+	rollback := utils.Memory(configure.EnvPrefix+"OIDC_TOKEN_FILE",
+		configure.EnvPrefix+"OIDC_PROVIDER_ARN",
+		configure.EnvPrefix+"ROLE_ARN",
+		configure.EnvPrefix+"ECS_METADATA",
+		configure.EnvPrefix+"CREDENTIALS_URI")
 
 	defer rollback()
-	os.Setenv("ALIBABA_CLOUD_OIDC_TOKEN_FILE", "/path/to/oidc.token")
-	os.Setenv("ALIBABA_CLOUD_OIDC_PROVIDER_ARN", "oidcproviderarn")
-	os.Setenv("ALIBABA_CLOUD_ROLE_ARN", "rolearn")
+	os.Setenv(configure.EnvPrefix+"OIDC_TOKEN_FILE", "/path/to/oidc.token")
+	os.Setenv(configure.EnvPrefix+"OIDC_PROVIDER_ARN", "oidcproviderarn")
+	os.Setenv(configure.EnvPrefix+"ROLE_ARN", "rolearn")
 
 	provider = NewDefaultCredentialsProvider()
 	assert.NotNil(t, provider)
@@ -58,7 +59,7 @@ func TestDefaultCredentialsProvider(t *testing.T) {
 	assert.True(t, ok)
 
 	// Add ecs ram role name
-	os.Setenv("ALIBABA_CLOUD_ECS_METADATA", "rolename")
+	os.Setenv(configure.EnvPrefix+"ECS_METADATA", "rolename")
 	provider = NewDefaultCredentialsProvider()
 	assert.NotNil(t, provider)
 	assert.Len(t, provider.providerChain, 5)
@@ -78,7 +79,7 @@ func TestDefaultCredentialsProvider(t *testing.T) {
 	assert.True(t, ok)
 
 	// Add ecs ram role
-	os.Setenv("ALIBABA_CLOUD_CREDENTIALS_URI", "http://")
+	os.Setenv(configure.EnvPrefix+"CREDENTIALS_URI", "http://")
 	provider = NewDefaultCredentialsProvider()
 	assert.NotNil(t, provider)
 	assert.Len(t, provider.providerChain, 6)
@@ -102,11 +103,11 @@ func TestDefaultCredentialsProvider(t *testing.T) {
 }
 
 func TestDefaultCredentialsProvider_GetCredentials(t *testing.T) {
-	rollback := utils.Memory("ALIBABA_CLOUD_ACCESS_KEY_ID",
-		"ALIBABA_CLOUD_ACCESS_KEY_SECRET",
-		"ALIBABA_CLOUD_SECURITY_TOKEN",
-		"ALIBABA_CLOUD_ECS_METADATA_DISABLED",
-		"ALIBABA_CLOUD_PROFILE")
+	rollback := utils.Memory(configure.EnvPrefix+"ACCESS_KEY_ID",
+		configure.EnvPrefix+"ACCESS_KEY_SECRET",
+		configure.EnvPrefix+"SECURITY_TOKEN",
+		configure.EnvPrefix+"ECS_METADATA_DISABLED",
+		configure.EnvPrefix+"PROFILE")
 
 	defer func() {
 		getHomePath = utils.GetHomePath
@@ -120,14 +121,14 @@ func TestDefaultCredentialsProvider_GetCredentials(t *testing.T) {
 		return ""
 	}
 
-	os.Setenv("ALIBABA_CLOUD_ECS_METADATA_DISABLED", "true")
+	os.Setenv(configure.EnvPrefix+"ECS_METADATA_DISABLED", "true")
 	provider := NewDefaultCredentialsProvider()
 	assert.Len(t, provider.providerChain, 3)
 	_, err := provider.GetCredentials()
-	assert.EqualError(t, err, "unable to get credentials from any of the providers in the chain: unable to get credentials from enviroment variables, Access key ID must be specified via environment variable (ALIBABA_CLOUD_ACCESS_KEY_ID), cannot found home dir, cannot found home dir")
+	assert.EqualError(t, err, "unable to get credentials from any of the providers in the chain: unable to get credentials from enviroment variables, Access key ID must be specified via environment variable ("+configure.EnvPrefix+"ACCESS_KEY_ID), cannot found home dir, cannot found home dir")
 
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_ID", "akid")
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "aksecret")
+	os.Setenv(configure.EnvPrefix+"ACCESS_KEY_ID", "akid")
+	os.Setenv(configure.EnvPrefix+"ACCESS_KEY_SECRET", "aksecret")
 	provider = NewDefaultCredentialsProvider()
 	assert.Len(t, provider.providerChain, 3)
 	cc, err := provider.GetCredentials()
@@ -142,9 +143,9 @@ func TestDefaultCredentialsProvider_GetCredentials(t *testing.T) {
 		wd, _ := os.Getwd()
 		return path.Join(wd, "fixtures")
 	}
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_ID", "")
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "")
-	os.Setenv("ALIBABA_CLOUD_PROFILE", "ChainableRamRoleArn")
+	os.Setenv(configure.EnvPrefix+"ACCESS_KEY_ID", "")
+	os.Setenv(configure.EnvPrefix+"ACCESS_KEY_SECRET", "")
+	os.Setenv(configure.EnvPrefix+"PROFILE", "ChainableRamRoleArn")
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
 		res = &httputil.Response{
 			StatusCode: 200,

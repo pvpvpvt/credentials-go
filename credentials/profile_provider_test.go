@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"runtime"
 	"strings"
@@ -255,7 +256,7 @@ func TestProfileProvider(t *testing.T) {
 	}()
 	c, err = p.resolve()
 	assert.Nil(t, c)
-	assert.EqualError(t, err, "ALIBABA_CLOUD_CREDENTIALS_FILE cannot be empty")
+	assert.EqualError(t, err, configure.EnvPrefix+"CREDENTIALS_FILE cannot be empty")
 
 	// testcase 2, default profile object
 	os.Unsetenv(ENVCredentialFile)

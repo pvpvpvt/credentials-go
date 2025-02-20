@@ -2,6 +2,9 @@ package providers
 
 import (
 	"errors"
+	"fmt"
+	"github.com/aliyun/credentials-go/configure"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -12,7 +15,8 @@ import (
 )
 
 func TestNewECSRAMRoleCredentialsProvider(t *testing.T) {
-	rollback := utils.Memory("ALIBABA_CLOUD_ECS_METADATA_DISABLED", "ALIBABA_CLOUD_ECS_METADATA", "ALIBABA_CLOUD_IMDSV1_DISABLED")
+	var envPrefix = configure.EnvPrefix
+	rollback := utils.Memory(envPrefix+"ECS_METADATA_DISABLED", envPrefix+"ECS_METADATA", envPrefix+"MDSV1_DISABLED")
 	defer func() {
 		rollback()
 	}()
@@ -20,7 +24,7 @@ func TestNewECSRAMRoleCredentialsProvider(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "", p.roleName)
 
-	os.Setenv("ALIBABA_CLOUD_ECS_METADATA", "rolename")
+	os.Setenv(envPrefix+"ECS_METADATA", "rolename")
 	p, err = NewECSRAMRoleCredentialsProviderBuilder().Build()
 	assert.Nil(t, err)
 	assert.Equal(t, "rolename", p.roleName)
@@ -30,17 +34,17 @@ func TestNewECSRAMRoleCredentialsProvider(t *testing.T) {
 	assert.Equal(t, "role", p.roleName)
 	assert.False(t, p.disableIMDSv1)
 
-	os.Setenv("ALIBABA_CLOUD_IMDSV1_DISABLED", "True")
+	os.Setenv(envPrefix+"IMDSV1_DISABLED", "True")
 	p, err = NewECSRAMRoleCredentialsProviderBuilder().Build()
 	assert.Nil(t, err)
 	assert.True(t, p.disableIMDSv1)
 
-	os.Setenv("ALIBABA_CLOUD_IMDSV1_DISABLED", "1")
+	os.Setenv(envPrefix+"IMDSV1_DISABLED", "1")
 	p, err = NewECSRAMRoleCredentialsProviderBuilder().WithDisableIMDSv1(true).Build()
 	assert.Nil(t, err)
 	assert.True(t, p.disableIMDSv1)
 
-	os.Setenv("ALIBABA_CLOUD_ECS_METADATA_DISABLED", "True")
+	os.Setenv(envPrefix+"ECS_METADATA_DISABLED", "True")
 	_, err = NewECSRAMRoleCredentialsProviderBuilder().Build()
 	assert.Equal(t, "IMDS credentials is disabled", err.Error())
 
@@ -75,7 +79,7 @@ func TestECSRAMRoleCredentialsProvider_getRoleName(t *testing.T) {
 
 	_, err = p.getRoleName()
 	assert.NotNil(t, err)
-	assert.Equal(t, "get role name failed: GET http://100.100.100.200/latest/meta-data/ram/security-credentials/ 400", err.Error())
+	assert.Equal(t, "get role name failed: GET "+configure.ECSIMDSSecurityCredURL+" 400", err.Error())
 
 	// case 3: ok
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
@@ -115,7 +119,7 @@ func TestECSRAMRoleCredentialsProvider_getRoleNameWithMetadataV2(t *testing.T) {
 				Body:       []byte("tokenxxxxx"),
 			}
 		} else {
-			assert.Equal(t, "tokenxxxxx", req.Headers["x-aliyun-ecs-metadata-token"])
+			assert.Equal(t, "tokenxxxxx", req.Headers[configure.ECSIMDSHeaderPrefix+"ecs-metadata-token"])
 
 			res = &httputil.Response{
 				StatusCode: 200,
@@ -146,9 +150,15 @@ func TestECSRAMRoleCredentialsProvider_getCredentials(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, "get role name failed: mock server error", err.Error())
 
+	parsedURL, err := url.Parse(configure.ECSIMDSSecurityCredURL)
+	if err != nil {
+		fmt.Println("Error parsing URL:", err)
+		return
+	}
+
 	// case 2: get role name ok, get credentials failed with server error
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		if req.Path == "/latest/meta-data/ram/security-credentials/" {
+		if req.Path == parsedURL.Path {
 			res = &httputil.Response{
 				StatusCode: 200,
 				Body:       []byte("rolename"),
@@ -165,7 +175,7 @@ func TestECSRAMRoleCredentialsProvider_getCredentials(t *testing.T) {
 
 	// case 3: 4xx error
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		if req.Path == "/latest/meta-data/ram/security-credentials/" {
+		if req.Path == parsedURL.Path {
 			res = &httputil.Response{
 				StatusCode: 200,
 				Body:       []byte("rolename"),
@@ -186,7 +196,7 @@ func TestECSRAMRoleCredentialsProvider_getCredentials(t *testing.T) {
 
 	// case 4: invalid json
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		if req.Path == "/latest/meta-data/ram/security-credentials/" {
+		if req.Path == parsedURL.Path {
 			res = &httputil.Response{
 				StatusCode: 200,
 				Body:       []byte("rolename"),
@@ -207,7 +217,7 @@ func TestECSRAMRoleCredentialsProvider_getCredentials(t *testing.T) {
 
 	// case 5: empty response json
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		if req.Path == "/latest/meta-data/ram/security-credentials/" {
+		if req.Path == parsedURL.Path {
 			res = &httputil.Response{
 				StatusCode: 200,
 				Body:       []byte("rolename"),
@@ -228,7 +238,7 @@ func TestECSRAMRoleCredentialsProvider_getCredentials(t *testing.T) {
 
 	// case 6: empty session ak response json
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		if req.Path == "/latest/meta-data/ram/security-credentials/" {
+		if req.Path == parsedURL.Path {
 			res = &httputil.Response{
 				StatusCode: 200,
 				Body:       []byte("rolename"),
@@ -248,7 +258,7 @@ func TestECSRAMRoleCredentialsProvider_getCredentials(t *testing.T) {
 
 	// case 7: non-success response
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		if req.Path == "/latest/meta-data/ram/security-credentials/" {
+		if req.Path == parsedURL.Path {
 			res = &httputil.Response{
 				StatusCode: 200,
 				Body:       []byte("rolename"),
@@ -268,7 +278,7 @@ func TestECSRAMRoleCredentialsProvider_getCredentials(t *testing.T) {
 
 	// case 8: mock ok value
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		if req.Path == "/latest/meta-data/ram/security-credentials/" {
+		if req.Path == parsedURL.Path {
 			res = &httputil.Response{
 				StatusCode: 200,
 				Body:       []byte("rolename"),
@@ -315,15 +325,26 @@ func TestECSRAMRoleCredentialsProvider_getCredentialsWithMetadataV2(t *testing.T
 	assert.NotNil(t, err)
 	assert.Equal(t, "get metadata token failed: mock server error", err.Error())
 
+	parsedURL, err := url.Parse(configure.ECSIMDSSecurityCredURL)
+	if err != nil {
+		fmt.Println("Error parsing URL:", err)
+		return
+	}
+	parsedURL2, err := url.Parse(configure.ECSIMDSSecurityCredTokenURL)
+	if err != nil {
+		fmt.Println("Error parsing URL:", err)
+		return
+	}
+
 	// case 2: return token
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		if req.Path == "/latest/api/token" {
+		if req.Path == parsedURL2.Path {
 			res = &httputil.Response{
 				StatusCode: 200,
 				Body:       []byte("tokenxxxxx"),
 			}
-		} else if req.Path == "/latest/meta-data/ram/security-credentials/rolename" {
-			assert.Equal(t, "tokenxxxxx", req.Headers["x-aliyun-ecs-metadata-token"])
+		} else if req.Path == parsedURL.Path+"rolename" {
+			assert.Equal(t, "tokenxxxxx", req.Headers[configure.ECSIMDSHeaderPrefix+"ecs-metadata-token"])
 			res = &httputil.Response{
 				StatusCode: 200,
 				Body:       []byte(`{"AccessKeyId":"saki","AccessKeySecret":"saks","Expiration":"2021-10-20T04:27:09Z","SecurityToken":"token","Code":"Success"}`),
@@ -392,7 +413,7 @@ func TestECSRAMRoleCredentialsProviderGetCredentials(t *testing.T) {
 }
 
 func TestECSRAMRoleCredentialsProvider_getMetadataToken(t *testing.T) {
-	rollback := utils.Memory("ALIBABA_CLOUD_IMDSV1_DISABLED")
+	rollback := utils.Memory(configure.EnvPrefix + "IMDSV1_DISABLED")
 	defer func() {
 		rollback()
 	}()
@@ -418,14 +439,14 @@ func TestECSRAMRoleCredentialsProvider_getMetadataToken(t *testing.T) {
 	_, err = p.getMetadataToken()
 	assert.Nil(t, err)
 
-	os.Setenv("ALIBABA_CLOUD_IMDSV1_DISABLED", "true")
+	os.Setenv(configure.EnvPrefix+"IMDSV1_DISABLED", "true")
 	p, err = NewECSRAMRoleCredentialsProviderBuilder().Build()
 	assert.Nil(t, err)
 
 	_, err = p.getMetadataToken()
 	assert.NotNil(t, err)
 
-	os.Setenv("ALIBABA_CLOUD_IMDSV1_DISABLED", "")
+	os.Setenv(configure.EnvPrefix+"IMDSV1_DISABLED", "")
 	p, err = NewECSRAMRoleCredentialsProviderBuilder().Build()
 	assert.Nil(t, err)
 

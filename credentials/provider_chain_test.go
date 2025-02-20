@@ -1,6 +1,8 @@
 package credentials
 
 import (
+	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"testing"
 
@@ -28,7 +30,7 @@ func TestProviderChain(t *testing.T) {
 	}()
 	c, err := pc.resolve()
 	assert.Nil(t, c)
-	assert.EqualError(t, err, "ALIBABA_CLOUD_ACCESS_KEY_ID or ALIBABA_CLOUD_ACCESS_KEY_Id cannot be empty")
+	assert.EqualError(t, err, fmt.Sprintf("%sACCESS_KEY_ID or %sACCESS_KEY_Id cannot be empty", configure.EnvPrefix, configure.EnvPrefix))
 
 	os.Setenv(EnvVarAccessKeyId, "AccessKeyId")
 	os.Setenv(EnvVarAccessKeySecret, "AccessKeySecret")
@@ -116,7 +118,7 @@ func TestDefaultChainHasCred(t *testing.T) {
 	assert.Equal(t, "roleSessionName", tea.StringValue(config.RoleSessionName))
 	assert.Equal(t, "oidc_role_arn", tea.StringValue(config.Type))
 
-	os.Setenv("ALIBABA_CLOUD_CLI_PROFILE_DISABLED", "true")
+	os.Setenv(configure.EnvPrefix+"CLI_PROFILE_DISABLED", "true")
 	cred, err := NewCredential(nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, cred)

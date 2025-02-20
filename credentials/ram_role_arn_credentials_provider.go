@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"strconv"
 	"time"
 
@@ -149,7 +150,7 @@ func (r *RAMRoleArnCredentialsProvider) updateCredential() (err error) {
 		r.runtime = new(utils.Runtime)
 	}
 	request := request.NewCommonRequest()
-	request.Domain = "sts.aliyuncs.com"
+	request.Domain = configure.StsDefaultEndpoint
 	if r.runtime.STSEndpoint != "" {
 		request.Domain = r.runtime.STSEndpoint
 	}

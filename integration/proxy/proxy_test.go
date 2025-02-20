@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"testing"
 
@@ -29,9 +30,9 @@ func TestRAMRoleARNWithInvalidProxy(t *testing.T) {
 func TestOIDCWithInvalidProxy(t *testing.T) {
 	config := &credentials.Config{
 		Type:              tea.String("oidc_role_arn"),
-		RoleArn:           tea.String(os.Getenv("ALIBABA_CLOUD_ROLE_ARN")),
-		OIDCProviderArn:   tea.String(os.Getenv("ALIBABA_CLOUD_OIDC_PROVIDER_ARN")),
-		OIDCTokenFilePath: tea.String(os.Getenv("ALIBABA_CLOUD_OIDC_TOKEN_FILE")),
+		RoleArn:           tea.String(os.Getenv(configure.EnvPrefix + "ROLE_ARN")),
+		OIDCProviderArn:   tea.String(os.Getenv(configure.EnvPrefix + "OIDC_PROVIDER_ARN")),
+		OIDCTokenFilePath: tea.String(os.Getenv(configure.EnvPrefix + "OIDC_TOKEN_FILE")),
 		RoleSessionName:   tea.String("credentials-go-test"),
 		Proxy:             tea.String("https://localhost:3600/"),
 	}

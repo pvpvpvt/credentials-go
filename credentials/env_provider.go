@@ -2,6 +2,7 @@ package credentials
 
 import (
 	"errors"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -12,11 +13,9 @@ type envProvider struct{}
 var providerEnv = new(envProvider)
 
 const (
-	// EnvVarAccessKeyId is a name of ALIBABA_CLOUD_ACCESS_KEY_Id
-	EnvVarAccessKeyId    = "ALIBABA_CLOUD_ACCESS_KEY_Id"
-	EnvVarAccessKeyIdNew = "ALIBABA_CLOUD_ACCESS_KEY_ID"
-	// EnvVarAccessKeySecret is a name of ALIBABA_CLOUD_ACCESS_KEY_SECRET
-	EnvVarAccessKeySecret = "ALIBABA_CLOUD_ACCESS_KEY_SECRET"
+	EnvVarAccessKeyId     = configure.EnvPrefix + "ACCESS_KEY_Id"
+	EnvVarAccessKeyIdNew  = configure.EnvPrefix + "ACCESS_KEY_ID"
+	EnvVarAccessKeySecret = configure.EnvPrefix + "ACCESS_KEY_SECRET"
 )
 
 func newEnvProvider() Provider {
@@ -39,7 +38,7 @@ func (p *envProvider) resolve() (config *Config, err error) {
 		return nil, errors.New(EnvVarAccessKeySecret + " cannot be empty")
 	}
 
-	securityToken := os.Getenv("ALIBABA_CLOUD_SECURITY_TOKEN")
+	securityToken := os.Getenv(configure.EnvPrefix + "SECURITY_TOKEN")
 
 	if securityToken != "" {
 		config = &Config{

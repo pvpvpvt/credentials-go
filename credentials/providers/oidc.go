@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -100,7 +101,7 @@ func (b *OIDCCredentialsProviderBuilder) Build() (provider *OIDCCredentialsProvi
 	}
 
 	if b.provider.oidcTokenFilePath == "" {
-		b.provider.oidcTokenFilePath = os.Getenv("ALIBABA_CLOUD_OIDC_TOKEN_FILE")
+		b.provider.oidcTokenFilePath = os.Getenv(configure.EnvPrefix + "OIDC_TOKEN_FILE")
 	}
 
 	if b.provider.oidcTokenFilePath == "" {
@@ -109,7 +110,7 @@ func (b *OIDCCredentialsProviderBuilder) Build() (provider *OIDCCredentialsProvi
 	}
 
 	if b.provider.oidcProviderARN == "" {
-		b.provider.oidcProviderARN = os.Getenv("ALIBABA_CLOUD_OIDC_PROVIDER_ARN")
+		b.provider.oidcProviderARN = os.Getenv(configure.EnvPrefix + "OIDC_PROVIDER_ARN")
 	}
 
 	if b.provider.oidcProviderARN == "" {
@@ -118,7 +119,7 @@ func (b *OIDCCredentialsProviderBuilder) Build() (provider *OIDCCredentialsProvi
 	}
 
 	if b.provider.roleArn == "" {
-		b.provider.roleArn = os.Getenv("ALIBABA_CLOUD_ROLE_ARN")
+		b.provider.roleArn = os.Getenv(configure.EnvPrefix + "ROLE_ARN")
 	}
 
 	if b.provider.roleArn == "" {
@@ -136,18 +137,18 @@ func (b *OIDCCredentialsProviderBuilder) Build() (provider *OIDCCredentialsProvi
 
 	if b.provider.stsEndpoint == "" {
 		if !b.provider.enableVpc {
-			b.provider.enableVpc = strings.ToLower(os.Getenv("ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED")) == "true"
+			b.provider.enableVpc = strings.ToLower(os.Getenv(configure.EnvPrefix+"VPC_ENDPOINT_ENABLED")) == "true"
 		}
 		prefix := "sts"
 		if b.provider.enableVpc {
 			prefix = "sts-vpc"
 		}
 		if b.provider.stsRegionId != "" {
-			b.provider.stsEndpoint = fmt.Sprintf("%s.%s.aliyuncs.com", prefix, b.provider.stsRegionId)
-		} else if region := os.Getenv("ALIBABA_CLOUD_STS_REGION"); region != "" {
-			b.provider.stsEndpoint = fmt.Sprintf("%s.%s.aliyuncs.com", prefix, region)
+			b.provider.stsEndpoint = fmt.Sprintf("%s.%s.%s", prefix, b.provider.stsRegionId, configure.DomainSuffix)
+		} else if region := os.Getenv(configure.EnvPrefix + "STS_REGION"); region != "" {
+			b.provider.stsEndpoint = fmt.Sprintf("%s.%s.%s", prefix, region, configure.DomainSuffix)
 		} else {
-			b.provider.stsEndpoint = "sts.aliyuncs.com"
+			b.provider.stsEndpoint = configure.StsDefaultEndpoint
 		}
 	}
 

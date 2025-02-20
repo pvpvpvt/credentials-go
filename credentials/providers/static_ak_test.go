@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"testing"
 
@@ -33,15 +34,15 @@ func TestStaticAKCredentialsProvider(t *testing.T) {
 }
 
 func TestStaticAKCredentialsProviderWithEnv(t *testing.T) {
-	originAKID := os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")
-	originAKSecret := os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
+	originAKID := os.Getenv(configure.EnvPrefix + "ACCESS_KEY_ID")
+	originAKSecret := os.Getenv(configure.EnvPrefix + "ACCESS_KEY_SECRET")
 	defer func() {
-		os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_ID", originAKID)
-		os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", originAKSecret)
+		os.Setenv(configure.EnvPrefix+"ACCESS_KEY_ID", originAKID)
+		os.Setenv(configure.EnvPrefix+"ACCESS_KEY_SECRET", originAKSecret)
 	}()
 
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_ID", "akid_from_env")
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "aksecret_from_env")
+	os.Setenv(configure.EnvPrefix+"ACCESS_KEY_ID", "akid_from_env")
+	os.Setenv(configure.EnvPrefix+"ACCESS_KEY_SECRET", "aksecret_from_env")
 	provider, err := NewStaticAKCredentialsProviderBuilder().
 		Build()
 	assert.Nil(t, err)

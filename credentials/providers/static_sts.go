@@ -2,6 +2,7 @@ package providers
 
 import (
 	"errors"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 )
 
@@ -38,7 +39,7 @@ func (builder *StaticSTSCredentialsProviderBuilder) WithSecurityToken(securityTo
 
 func (builder *StaticSTSCredentialsProviderBuilder) Build() (provider *StaticSTSCredentialsProvider, err error) {
 	if builder.provider.accessKeyId == "" {
-		builder.provider.accessKeyId = os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")
+		builder.provider.accessKeyId = os.Getenv(configure.EnvPrefix + "ACCESS_KEY_ID")
 	}
 
 	if builder.provider.accessKeyId == "" {
@@ -47,7 +48,7 @@ func (builder *StaticSTSCredentialsProviderBuilder) Build() (provider *StaticSTS
 	}
 
 	if builder.provider.accessKeySecret == "" {
-		builder.provider.accessKeySecret = os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
+		builder.provider.accessKeySecret = os.Getenv(configure.EnvPrefix + "ACCESS_KEY_SECRET")
 	}
 
 	if builder.provider.accessKeySecret == "" {
@@ -56,7 +57,7 @@ func (builder *StaticSTSCredentialsProviderBuilder) Build() (provider *StaticSTS
 	}
 
 	if builder.provider.securityToken == "" {
-		builder.provider.securityToken = os.Getenv("ALIBABA_CLOUD_SECURITY_TOKEN")
+		builder.provider.securityToken = os.Getenv(configure.EnvPrefix + "SECURITY_TOKEN")
 	}
 
 	if builder.provider.securityToken == "" {

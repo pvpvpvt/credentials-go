@@ -2,6 +2,7 @@ package providers
 
 import (
 	"errors"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"path"
 	"strings"
@@ -36,7 +37,7 @@ func TestOIDCCredentialsProviderGetCredentialsWithError(t *testing.T) {
 }
 
 func TestNewOIDCCredentialsProvider(t *testing.T) {
-	rollback := utils.Memory("ALIBABA_CLOUD_OIDC_TOKEN_FILE", "ALIBABA_CLOUD_OIDC_PROVIDER_ARN", "ALIBABA_CLOUD_ROLE_ARN", "ALIBABA_CLOUD_STS_REGION", "ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED")
+	rollback := utils.Memory(configure.EnvPrefix+"OIDC_TOKEN_FILE", configure.EnvPrefix+"OIDC_PROVIDER_ARN", configure.EnvPrefix+"ROLE_ARN", configure.EnvPrefix+"STS_REGION", configure.EnvPrefix+"VPC_ENDPOINT_ENABLED")
 	defer func() {
 		rollback()
 	}()
@@ -76,9 +77,9 @@ func TestNewOIDCCredentialsProvider(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, "the Assume Role session duration should be in the range of 15min - max duration seconds", err.Error())
 
-	os.Setenv("ALIBABA_CLOUD_OIDC_TOKEN_FILE", "/path/from/env")
-	os.Setenv("ALIBABA_CLOUD_OIDC_PROVIDER_ARN", "provider_arn_from_env")
-	os.Setenv("ALIBABA_CLOUD_ROLE_ARN", "role_arn_from_env")
+	os.Setenv(configure.EnvPrefix+"OIDC_TOKEN_FILE", "/path/from/env")
+	os.Setenv(configure.EnvPrefix+"OIDC_PROVIDER_ARN", "provider_arn_from_env")
+	os.Setenv(configure.EnvPrefix+"ROLE_ARN", "role_arn_from_env")
 
 	p, err = NewOIDCCredentialsProviderBuilder().
 		Build()
@@ -88,22 +89,22 @@ func TestNewOIDCCredentialsProvider(t *testing.T) {
 	assert.Equal(t, "provider_arn_from_env", p.oidcProviderARN)
 	assert.Equal(t, "role_arn_from_env", p.roleArn)
 	// sts endpoint: default
-	assert.Equal(t, "sts.aliyuncs.com", p.stsEndpoint)
+	assert.Equal(t, configure.StsDefaultEndpoint, p.stsEndpoint)
 
 	// sts endpoint: with sts endpoint env
-	os.Setenv("ALIBABA_CLOUD_STS_REGION", "cn-hangzhou")
-	os.Setenv("ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED", "true")
+	os.Setenv(configure.EnvPrefix+"STS_REGION", "cn-hangzhou")
+	os.Setenv(configure.EnvPrefix+"VPC_ENDPOINT_ENABLED", "true")
 	p, err = NewOIDCCredentialsProviderBuilder().
 		Build()
 	assert.Nil(t, err)
-	assert.Equal(t, "sts-vpc.cn-hangzhou.aliyuncs.com", p.stsEndpoint)
+	assert.Equal(t, "sts-vpc.cn-hangzhou."+configure.DomainSuffix, p.stsEndpoint)
 
 	// sts endpoint: with sts endpoint
 	p, err = NewOIDCCredentialsProviderBuilder().
-		WithSTSEndpoint("sts.cn-shanghai.aliyuncs.com").
+		WithSTSEndpoint("sts.cn-shanghai." + configure.DomainSuffix).
 		Build()
 	assert.Nil(t, err)
-	assert.Equal(t, "sts.cn-shanghai.aliyuncs.com", p.stsEndpoint)
+	assert.Equal(t, "sts.cn-shanghai."+configure.DomainSuffix, p.stsEndpoint)
 
 	// sts endpoint: with sts regionId
 	p, err = NewOIDCCredentialsProviderBuilder().
@@ -111,9 +112,9 @@ func TestNewOIDCCredentialsProvider(t *testing.T) {
 		WithEnableVpc(true).
 		Build()
 	assert.Nil(t, err)
-	assert.Equal(t, "sts-vpc.cn-beijing.aliyuncs.com", p.stsEndpoint)
+	assert.Equal(t, "sts-vpc.cn-beijing."+configure.DomainSuffix, p.stsEndpoint)
 
-	os.Setenv("ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED", "false")
+	os.Setenv(configure.EnvPrefix+"VPC_ENDPOINT_ENABLED", "false")
 	p, err = NewOIDCCredentialsProviderBuilder().
 		WithOIDCTokenFilePath("/path/to/invalid/oidc.token").
 		WithOIDCProviderARN("provider-arn").
@@ -131,7 +132,7 @@ func TestNewOIDCCredentialsProvider(t *testing.T) {
 	assert.Equal(t, "cn-hangzhou", p.stsRegionId)
 	assert.Equal(t, "policy", p.policy)
 	assert.Equal(t, 3600, p.durationSeconds)
-	assert.Equal(t, "sts.cn-hangzhou.aliyuncs.com", p.stsEndpoint)
+	assert.Equal(t, "sts.cn-hangzhou."+configure.DomainSuffix, p.stsEndpoint)
 }
 
 func TestOIDCCredentialsProvider_getCredentials(t *testing.T) {
@@ -267,7 +268,7 @@ func TestOIDCCredentialsProvider_getCredentialsWithRequestCheck(t *testing.T) {
 
 	// case 1: server error
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		assert.Equal(t, "sts.aliyuncs.com", req.Host)
+		assert.Equal(t, configure.StsDefaultEndpoint, req.Host)
 		assert.Equal(t, "AssumeRoleWithOIDC", req.Queries["Action"])
 		assert.Equal(t, "policy", req.Form["Policy"])
 		assert.Equal(t, "roleArn", req.Form["RoleArn"])

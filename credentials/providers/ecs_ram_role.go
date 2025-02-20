@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -51,18 +53,18 @@ const defaultMetadataTokenDuration = 21600 // 6 hours
 
 func (builder *ECSRAMRoleCredentialsProviderBuilder) Build() (provider *ECSRAMRoleCredentialsProvider, err error) {
 
-	if strings.ToLower(os.Getenv("ALIBABA_CLOUD_ECS_METADATA_DISABLED")) == "true" {
+	if strings.ToLower(os.Getenv(configure.EnvPrefix+"ECS_METADATA_DISABLED")) == "true" {
 		err = errors.New("IMDS credentials is disabled")
 		return
 	}
 
 	// 设置 roleName 默认值
 	if builder.provider.roleName == "" {
-		builder.provider.roleName = os.Getenv("ALIBABA_CLOUD_ECS_METADATA")
+		builder.provider.roleName = os.Getenv(configure.EnvPrefix + "ECS_METADATA")
 	}
 
 	if !builder.provider.disableIMDSv1 {
-		builder.provider.disableIMDSv1 = strings.ToLower(os.Getenv("ALIBABA_CLOUD_IMDSV1_DISABLED")) == "true"
+		builder.provider.disableIMDSv1 = strings.ToLower(os.Getenv(configure.EnvPrefix+"IMDSV1_DISABLED")) == "true"
 	}
 
 	provider = builder.provider
@@ -87,11 +89,17 @@ func (provider *ECSRAMRoleCredentialsProvider) needUpdateCredential() bool {
 }
 
 func (provider *ECSRAMRoleCredentialsProvider) getRoleName() (roleName string, err error) {
+	// parse ECSIMDSSecurityCredURL
+	parsedURL, err := url.Parse(configure.ECSIMDSSecurityCredURL)
+	if err != nil {
+		fmt.Println("Error parsing URL:", err)
+		return
+	}
 	req := &httputil.Request{
 		Method:   "GET",
-		Protocol: "http",
-		Host:     "100.100.100.200",
-		Path:     "/latest/meta-data/ram/security-credentials/",
+		Protocol: parsedURL.Scheme,
+		Host:     parsedURL.Host,
+		Path:     parsedURL.Path,
 		Headers:  map[string]string{},
 	}
 
@@ -115,7 +123,7 @@ func (provider *ECSRAMRoleCredentialsProvider) getRoleName() (roleName string, e
 		return "", err
 	}
 	if metadataToken != "" {
-		req.Headers["x-aliyun-ecs-metadata-token"] = metadataToken
+		req.Headers[configure.ECSIMDSHeaderPrefix+"ecs-metadata-token"] = metadataToken
 	}
 
 	res, err := httpDo(req)
@@ -142,11 +150,17 @@ func (provider *ECSRAMRoleCredentialsProvider) getCredentials() (session *sessio
 		}
 	}
 
+	parsedURL, err := url.Parse(configure.ECSIMDSSecurityCredURL)
+	if err != nil {
+		fmt.Println("Error parsing URL:", err)
+		return
+	}
+
 	req := &httputil.Request{
 		Method:   "GET",
-		Protocol: "http",
-		Host:     "100.100.100.200",
-		Path:     "/latest/meta-data/ram/security-credentials/" + roleName,
+		Protocol: parsedURL.Scheme,
+		Host:     parsedURL.Host,
+		Path:     parsedURL.Path + roleName,
 		Headers:  map[string]string{},
 	}
 
@@ -170,7 +184,7 @@ func (provider *ECSRAMRoleCredentialsProvider) getCredentials() (session *sessio
 		return nil, err
 	}
 	if metadataToken != "" {
-		req.Headers["x-aliyun-ecs-metadata-token"] = metadataToken
+		req.Headers[configure.ECSIMDSHeaderPrefix+"ecs-metadata-token"] = metadataToken
 	}
 
 	res, err := httpDo(req)
@@ -240,13 +254,18 @@ func (provider *ECSRAMRoleCredentialsProvider) GetProviderName() string {
 
 func (provider *ECSRAMRoleCredentialsProvider) getMetadataToken() (metadataToken string, err error) {
 	// PUT http://100.100.100.200/latest/api/token
+	parsedURL, err := url.Parse(configure.ECSIMDSSecurityCredTokenURL)
+	if err != nil {
+		fmt.Println("Error parsing URL:", err)
+		return
+	}
 	req := &httputil.Request{
 		Method:   "PUT",
-		Protocol: "http",
-		Host:     "100.100.100.200",
-		Path:     "/latest/api/token",
+		Protocol: parsedURL.Scheme,
+		Host:     parsedURL.Host,
+		Path:     parsedURL.Path,
 		Headers: map[string]string{
-			"X-aliyun-ecs-metadata-token-ttl-seconds": strconv.Itoa(defaultMetadataTokenDuration),
+			configure.ECSIMDSHeaderPrefix + "ecs-metadata-token-ttl-seconds": strconv.Itoa(defaultMetadataTokenDuration),
 		},
 	}
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"net/http"
 	"net/url"
 	"os"
@@ -172,7 +173,7 @@ func (builder *RAMRoleARNCredentialsProviderBuilder) Build() (provider *RAMRoleA
 	}
 
 	if builder.provider.roleArn == "" {
-		if roleArn := os.Getenv("ALIBABA_CLOUD_ROLE_ARN"); roleArn != "" {
+		if roleArn := os.Getenv(configure.EnvPrefix + "ROLE_ARN"); roleArn != "" {
 			builder.provider.roleArn = roleArn
 		} else {
 			err = errors.New("the RoleArn is empty")
@@ -181,7 +182,7 @@ func (builder *RAMRoleARNCredentialsProviderBuilder) Build() (provider *RAMRoleA
 	}
 
 	if builder.provider.roleSessionName == "" {
-		if roleSessionName := os.Getenv("ALIBABA_CLOUD_ROLE_SESSION_NAME"); roleSessionName != "" {
+		if roleSessionName := os.Getenv(configure.EnvPrefix + "ROLE_SESSION_NAME"); roleSessionName != "" {
 			builder.provider.roleSessionName = roleSessionName
 		} else {
 			builder.provider.roleSessionName = "credentials-go-" + strconv.FormatInt(time.Now().UnixNano()/1000, 10)
@@ -202,18 +203,18 @@ func (builder *RAMRoleARNCredentialsProviderBuilder) Build() (provider *RAMRoleA
 	// sts endpoint
 	if builder.provider.stsEndpoint == "" {
 		if !builder.provider.enableVpc {
-			builder.provider.enableVpc = strings.ToLower(os.Getenv("ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED")) == "true"
+			builder.provider.enableVpc = strings.ToLower(os.Getenv(configure.EnvPrefix+"VPC_ENDPOINT_ENABLED")) == "true"
 		}
 		prefix := "sts"
 		if builder.provider.enableVpc {
 			prefix = "sts-vpc"
 		}
 		if builder.provider.stsRegionId != "" {
-			builder.provider.stsEndpoint = fmt.Sprintf("%s.%s.aliyuncs.com", prefix, builder.provider.stsRegionId)
-		} else if region := os.Getenv("ALIBABA_CLOUD_STS_REGION"); region != "" {
-			builder.provider.stsEndpoint = fmt.Sprintf("%s.%s.aliyuncs.com", prefix, region)
+			builder.provider.stsEndpoint = fmt.Sprintf("%s.%s.%s", prefix, builder.provider.stsRegionId, configure.DomainSuffix)
+		} else if region := os.Getenv(configure.EnvPrefix + "STS_REGION"); region != "" {
+			builder.provider.stsEndpoint = fmt.Sprintf("%s.%s.%s", prefix, region, configure.DomainSuffix)
 		} else {
-			builder.provider.stsEndpoint = "sts.aliyuncs.com"
+			builder.provider.stsEndpoint = configure.StsDefaultEndpoint
 		}
 	}
 

@@ -3,6 +3,7 @@ package credentials
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"strconv"
 	"time"
 
@@ -11,8 +12,8 @@ import (
 	"github.com/aliyun/credentials-go/credentials/request"
 )
 
-var securityCredURL = "http://100.100.100.200/latest/meta-data/ram/security-credentials/"
-var securityCredTokenURL = "http://100.100.100.200/latest/api/token"
+var securityCredURL = configure.ECSIMDSSecurityCredURL
+var securityCredTokenURL = configure.ECSIMDSSecurityCredTokenURL
 
 const defaultMetadataTokenDuration = int(21600)
 
@@ -72,7 +73,7 @@ func (e *ECSRAMRoleCredentialsProvider) GetCredential() (credentials *Credential
 	return
 }
 
-// GetAccessKeyId reutrns  EcsRAMRoleCredential's AccessKeyId
+// GetAccessKeyId returns  EcsRAMRoleCredential's AccessKeyId
 // if AccessKeyId is not exist or out of date, the function will update it.
 func (e *ECSRAMRoleCredentialsProvider) GetAccessKeyId() (accessKeyId *string, err error) {
 	c, err := e.GetCredential()
@@ -96,7 +97,7 @@ func (e *ECSRAMRoleCredentialsProvider) GetAccessKeySecret() (accessKeySecret *s
 	return
 }
 
-// GetSecurityToken reutrns  EcsRAMRoleCredential's SecurityToken
+// GetSecurityToken returns  EcsRAMRoleCredential's SecurityToken
 // if SecurityToken is not exist or out of date, the function will update it.
 func (e *ECSRAMRoleCredentialsProvider) GetSecurityToken() (securityToken *string, err error) {
 	c, err := e.GetCredential()
@@ -113,7 +114,7 @@ func (e *ECSRAMRoleCredentialsProvider) GetBearerToken() *string {
 	return tea.String("")
 }
 
-// GetType reutrns  EcsRAMRoleCredential's type
+// GetType returns  EcsRAMRoleCredential's type
 func (e *ECSRAMRoleCredentialsProvider) GetType() *string {
 	return tea.String("ecs_ram_role")
 }
@@ -139,7 +140,7 @@ func (e *ECSRAMRoleCredentialsProvider) getMetadataToken() (err error) {
 		request := request.NewCommonRequest()
 		request.URL = securityCredTokenURL
 		request.Method = "PUT"
-		request.Headers["X-aliyun-ecs-metadata-token-ttl-seconds"] = strconv.Itoa(e.MetadataTokenDuration)
+		request.Headers[configure.ECSIMDSHeaderPrefix+"ecs-metadata-token-ttl-seconds"] = strconv.Itoa(e.MetadataTokenDuration)
 		content, err := doAction(request, e.runtime)
 		if err != nil {
 			return err
@@ -166,7 +167,7 @@ func (e *ECSRAMRoleCredentialsProvider) updateCredential() (err error) {
 		if err != nil {
 			return fmt.Errorf("failed to get token from ECS Metadata Service: %s", err.Error())
 		}
-		request.Headers["X-aliyun-ecs-metadata-token"] = e.metadataToken
+		request.Headers[configure.ECSIMDSHeaderPrefix+"ecs-metadata-token"] = e.metadataToken
 	}
 	request.URL = securityCredURL + e.RoleName
 	request.Method = "GET"

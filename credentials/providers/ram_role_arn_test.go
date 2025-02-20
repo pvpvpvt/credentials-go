@@ -2,6 +2,7 @@ package providers
 
 import (
 	"errors"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"strings"
 	"testing"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestNewRAMRoleARNCredentialsProvider(t *testing.T) {
-	rollback := utils.Memory("ALIBABA_CLOUD_STS_REGION", "ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED")
+	rollback := utils.Memory(configure.EnvPrefix+"STS_REGION", configure.EnvPrefix+"VPC_ENDPOINT_ENABLED")
 	defer func() {
 		rollback()
 	}()
@@ -75,10 +76,10 @@ func TestNewRAMRoleARNCredentialsProvider(t *testing.T) {
 	assert.Equal(t, "cn-hangzhou", p.stsRegionId)
 	assert.Equal(t, 1000, p.durationSeconds)
 	// sts endpoint with sts region
-	assert.Equal(t, "sts-vpc.cn-hangzhou.aliyuncs.com", p.stsEndpoint)
+	assert.Equal(t, "sts-vpc.cn-hangzhou."+configure.DomainSuffix, p.stsEndpoint)
 
 	// case 7: check default sts endpoint
-	os.Setenv("ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED", "1")
+	os.Setenv(configure.EnvPrefix+"VPC_ENDPOINT_ENABLED", "1")
 	p, err = NewRAMRoleARNCredentialsProviderBuilder().
 		WithCredentialsProvider(akProvider).
 		WithRoleArn("roleArn").
@@ -94,11 +95,11 @@ func TestNewRAMRoleARNCredentialsProvider(t *testing.T) {
 	assert.Equal(t, "externalId", p.externalId)
 	assert.Equal(t, "", p.stsRegionId)
 	assert.Equal(t, 1000, p.durationSeconds)
-	assert.Equal(t, "sts.aliyuncs.com", p.stsEndpoint)
+	assert.Equal(t, configure.StsDefaultEndpoint, p.stsEndpoint)
 
 	// case 8: check sts endpoint with env
-	os.Setenv("ALIBABA_CLOUD_STS_REGION", "cn-hangzhou")
-	os.Setenv("ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED", "True")
+	os.Setenv(configure.EnvPrefix+"STS_REGION", "cn-hangzhou")
+	os.Setenv(configure.EnvPrefix+"VPC_ENDPOINT_ENABLED", "True")
 	p, err = NewRAMRoleARNCredentialsProviderBuilder().
 		WithCredentialsProvider(akProvider).
 		WithRoleArn("roleArn").
@@ -108,13 +109,13 @@ func TestNewRAMRoleARNCredentialsProvider(t *testing.T) {
 		WithDurationSeconds(1000).
 		Build()
 	assert.Nil(t, err)
-	assert.Equal(t, "sts-vpc.cn-hangzhou.aliyuncs.com", p.stsEndpoint)
+	assert.Equal(t, "sts-vpc.cn-hangzhou."+configure.DomainSuffix, p.stsEndpoint)
 
 	// case 9: check sts endpoint with sts endpoint
 	p, err = NewRAMRoleARNCredentialsProviderBuilder().
 		WithCredentialsProvider(akProvider).
 		WithRoleArn("roleArn").
-		WithStsEndpoint("sts.cn-shanghai.aliyuncs.com").
+		WithStsEndpoint("sts.cn-shanghai." + configure.DomainSuffix).
 		WithPolicy("policy").
 		WithExternalId("externalId").
 		WithRoleSessionName("rsn").
@@ -127,14 +128,14 @@ func TestNewRAMRoleARNCredentialsProvider(t *testing.T) {
 	assert.Equal(t, "externalId", p.externalId)
 	assert.Equal(t, "", p.stsRegionId)
 	assert.Equal(t, 1000, p.durationSeconds)
-	assert.Equal(t, "sts.cn-shanghai.aliyuncs.com", p.stsEndpoint)
+	assert.Equal(t, "sts.cn-shanghai."+configure.DomainSuffix, p.stsEndpoint)
 
 	// case 10: check ak&sk
 	p, err = NewRAMRoleARNCredentialsProviderBuilder().
 		WithAccessKeyId("ak").
 		WithAccessKeySecret("sk").
 		WithRoleArn("roleArn").
-		WithStsEndpoint("sts.cn-shanghai.aliyuncs.com").
+		WithStsEndpoint("sts.cn-shanghai." + configure.DomainSuffix).
 		WithPolicy("policy").
 		WithExternalId("externalId").
 		WithRoleSessionName("rsn").
@@ -153,7 +154,7 @@ func TestNewRAMRoleARNCredentialsProvider(t *testing.T) {
 		WithAccessKeySecret("sk").
 		WithSecurityToken("token").
 		WithRoleArn("roleArn").
-		WithStsEndpoint("sts.cn-shanghai.aliyuncs.com").
+		WithStsEndpoint("sts.cn-shanghai." + configure.DomainSuffix).
 		WithPolicy("policy").
 		WithExternalId("externalId").
 		WithRoleSessionName("rsn").
@@ -293,7 +294,7 @@ func TestRAMRoleARNCredentialsProvider_getCredentialsWithRequestCheck(t *testing
 
 	// case 1: server error
 	httpDo = func(req *httputil.Request) (res *httputil.Response, err error) {
-		assert.Equal(t, "sts.cn-beijing.aliyuncs.com", req.Host)
+		assert.Equal(t, "sts.cn-beijing."+configure.DomainSuffix, req.Host)
 		assert.Equal(t, "ststoken", req.Queries["SecurityToken"])
 		assert.Equal(t, "policy", req.Form["Policy"])
 		assert.Equal(t, "roleArn", req.Form["RoleArn"])
