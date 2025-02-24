@@ -2,6 +2,7 @@ package providers
 
 import (
 	"errors"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"strings"
 	"testing"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestNewURLCredentialsProvider(t *testing.T) {
-	rollback := utils.Memory("ALIBABA_CLOUD_CREDENTIALS_URI")
+	rollback := utils.Memory(configure.EnvPrefix + "CREDENTIALS_URI")
 	defer func() {
 		rollback()
 	}()
@@ -23,7 +24,7 @@ func TestNewURLCredentialsProvider(t *testing.T) {
 	assert.EqualError(t, err, "the url is empty")
 
 	// case 2: no role arn
-	os.Setenv("ALIBABA_CLOUD_CREDENTIALS_URI", "http://localhost:8080")
+	os.Setenv(configure.EnvPrefix+"CREDENTIALS_URI", "http://localhost:8080")
 	p, err := NewURLCredentialsProviderBuilderBuilder().
 		Build()
 	assert.Nil(t, err)

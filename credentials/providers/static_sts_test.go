@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"testing"
 
@@ -40,18 +41,18 @@ func TestStaticSTSCredentialsProvider(t *testing.T) {
 }
 
 func TestStaticSTSCredentialsProviderWithEnv(t *testing.T) {
-	originAKID := os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")
-	originAKSecret := os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
-	originToken := os.Getenv("ALIBABA_CLOUD_SECURITY_TOKEN")
+	originAKID := os.Getenv(configure.EnvPrefix + "ACCESS_KEY_ID")
+	originAKSecret := os.Getenv(configure.EnvPrefix + "ACCESS_KEY_SECRET")
+	originToken := os.Getenv(configure.EnvPrefix + "SECURITY_TOKEN")
 	defer func() {
-		os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_ID", originAKID)
-		os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", originAKSecret)
-		os.Setenv("ALIBABA_CLOUD_SECURITY_TOKEN", originToken)
+		os.Setenv(configure.EnvPrefix+"ACCESS_KEY_ID", originAKID)
+		os.Setenv(configure.EnvPrefix+"ACCESS_KEY_SECRET", originAKSecret)
+		os.Setenv(configure.EnvPrefix+"SECURITY_TOKEN", originToken)
 	}()
 
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_ID", "akid_from_env")
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "aksecret_from_env")
-	os.Setenv("ALIBABA_CLOUD_SECURITY_TOKEN", "token_from_env")
+	os.Setenv(configure.EnvPrefix+"ACCESS_KEY_ID", "akid_from_env")
+	os.Setenv(configure.EnvPrefix+"ACCESS_KEY_SECRET", "aksecret_from_env")
+	os.Setenv(configure.EnvPrefix+"SECURITY_TOKEN", "token_from_env")
 	provider, err := NewStaticSTSCredentialsProviderBuilder().
 		Build()
 	assert.Nil(t, err)

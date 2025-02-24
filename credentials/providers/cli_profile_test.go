@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"path"
 	"strings"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestCLIProfileCredentialsProvider(t *testing.T) {
-	rollback := utils.Memory("ALIBABA_CLOUD_PROFILE", "ALIBABA_CLOUD_CLI_PROFILE_DISABLED")
+	rollback := utils.Memory(configure.EnvPrefix+"PROFILE", configure.EnvPrefix+"CLI_PROFILE_DISABLED")
 	defer rollback()
 
 	b, err := NewCLIProfileCredentialsProviderBuilder().
@@ -21,7 +22,7 @@ func TestCLIProfileCredentialsProvider(t *testing.T) {
 	assert.Equal(t, "", b.profileName)
 
 	// get from env
-	os.Setenv("ALIBABA_CLOUD_PROFILE", "custom_profile")
+	os.Setenv(configure.EnvPrefix+"PROFILE", "custom_profile")
 	b, err = NewCLIProfileCredentialsProviderBuilder().
 		Build()
 	assert.Nil(t, err)
@@ -33,7 +34,7 @@ func TestCLIProfileCredentialsProvider(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "profilename", b.profileName)
 
-	os.Setenv("ALIBABA_CLOUD_CLI_PROFILE_DISABLED", "True")
+	os.Setenv(configure.EnvPrefix+"CLI_PROFILE_DISABLED", "True")
 	_, err = NewCLIProfileCredentialsProviderBuilder().
 		WithProfileName("profilename").
 		Build()
@@ -209,7 +210,8 @@ func TestCLIProfileCredentialsProvider_GetCredentials(t *testing.T) {
 	provider, err = NewCLIProfileCredentialsProviderBuilder().Build()
 	assert.Nil(t, err)
 	_, err = provider.GetCredentials()
-	assert.EqualError(t, err, "reading aliyun cli config from '/path/invalid/home/dir/.aliyun/config.json' failed open /path/invalid/home/dir/.aliyun/config.json: no such file or directory")
+	var configPath = configure.ConfigStorePath[1:]
+	assert.EqualError(t, err, "reading aliyun cli config from '/path/invalid/home/dir/"+configPath+"' failed open /path/invalid/home/dir/"+configPath+": no such file or directory")
 
 	getHomePath = func() string {
 		wd, _ := os.Getwd()

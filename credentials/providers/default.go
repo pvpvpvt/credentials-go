@@ -2,6 +2,7 @@ package providers
 
 import (
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"strings"
 )
@@ -45,7 +46,7 @@ func NewDefaultCredentialsProvider() (provider *DefaultCredentialsProvider) {
 	}
 
 	// credentials uri
-	if os.Getenv("ALIBABA_CLOUD_CREDENTIALS_URI") != "" {
+	if os.Getenv(configure.EnvPrefix+"CREDENTIALS_URI") != "" {
 		credentialsUriProvider, err := NewURLCredentialsProviderBuilderBuilder().Build()
 		if err == nil {
 			providers = append(providers, credentialsUriProvider)

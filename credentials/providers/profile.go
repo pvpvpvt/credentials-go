@@ -3,6 +3,7 @@ package providers
 import (
 	"errors"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"path"
 
@@ -33,9 +34,9 @@ func (b *ProfileCredentialsProviderBuilder) WithProfileName(profileName string) 
 func (b *ProfileCredentialsProviderBuilder) Build() (provider *ProfileCredentialsProvider, err error) {
 	// 优先级：
 	// 1. 使用显示指定的 profileName
-	// 2. 使用环境变量（ALIBABA_CLOUD_PROFILE）指定的 profileName
+	// 2. 使用环境变量（xx_PROFILE）指定的 profileName
 	// 3. 兜底使用 default 作为 profileName
-	b.provider.profileName = utils.GetDefaultString(b.provider.profileName, os.Getenv("ALIBABA_CLOUD_PROFILE"), "default")
+	b.provider.profileName = utils.GetDefaultString(b.provider.profileName, os.Getenv(configure.EnvPrefix+"PROFILE"), configure.DefaultProfileName)
 
 	provider = b.provider
 	return
@@ -121,15 +122,15 @@ func (provider *ProfileCredentialsProvider) getCredentialsProvider(ini *ini.File
 
 func (provider *ProfileCredentialsProvider) GetCredentials() (cc *Credentials, err error) {
 	if provider.innerProvider == nil {
-		sharedCfgPath := os.Getenv("ALIBABA_CLOUD_CREDENTIALS_FILE")
+		sharedCfgPath := os.Getenv(configure.EnvPrefix + "CREDENTIALS_FILE")
 		if sharedCfgPath == "" {
 			homeDir := getHomePath()
 			if homeDir == "" {
 				err = fmt.Errorf("cannot found home dir")
 				return
 			}
-
-			sharedCfgPath = path.Join(homeDir, ".alibabacloud/credentials")
+			var suffix = configure.PATHCredentialFile[2:]
+			sharedCfgPath = path.Join(homeDir, suffix)
 		}
 
 		ini, err1 := ini.Load(sharedCfgPath)

@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"testing"
 
@@ -9,18 +10,19 @@ import (
 )
 
 func TestEnvironmentVariableCredentialsProvider(t *testing.T) {
-	rollback := utils.Memory("ALIBABA_CLOUD_ACCESS_KEY_ID", "ALIBABA_CLOUD_ACCESS_KEY_SECRET", "ALIBABA_CLOUD_SECURITY_TOKEN")
+	var envPrefix = configure.EnvPrefix
+	rollback := utils.Memory(envPrefix+"ACCESS_KEY_ID", envPrefix+"ACCESS_KEY_SECRET", envPrefix+"SECURITY_TOKEN")
 	defer rollback()
 
 	p, err := NewEnvironmentVariableCredentialsProviderBuilder().Build()
 	assert.Nil(t, err)
 	_, err = p.GetCredentials()
-	assert.EqualError(t, err, "unable to get credentials from enviroment variables, Access key ID must be specified via environment variable (ALIBABA_CLOUD_ACCESS_KEY_ID)")
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_ID", "akid")
+	assert.EqualError(t, err, "unable to get credentials from enviroment variables, Access key ID must be specified via environment variable ("+envPrefix+"ACCESS_KEY_ID)")
+	os.Setenv(envPrefix+"ACCESS_KEY_ID", "akid")
 	_, err = p.GetCredentials()
-	assert.EqualError(t, err, "unable to get credentials from enviroment variables, Access key secret must be specified via environment variable (ALIBABA_CLOUD_ACCESS_KEY_SECRET)")
+	assert.EqualError(t, err, "unable to get credentials from enviroment variables, Access key secret must be specified via environment variable ("+envPrefix+"ACCESS_KEY_SECRET)")
 
-	os.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "aksecret")
+	os.Setenv(envPrefix+"ACCESS_KEY_SECRET", "aksecret")
 	cc, err := p.GetCredentials()
 	assert.Nil(t, err)
 	assert.Equal(t, "akid", cc.AccessKeyId)
@@ -28,7 +30,7 @@ func TestEnvironmentVariableCredentialsProvider(t *testing.T) {
 	assert.Equal(t, "", cc.SecurityToken)
 	assert.Equal(t, "env", cc.ProviderName)
 
-	os.Setenv("ALIBABA_CLOUD_SECURITY_TOKEN", "token")
+	os.Setenv(envPrefix+"SECURITY_TOKEN", "token")
 	cc, err = p.GetCredentials()
 	assert.Nil(t, err)
 	assert.Equal(t, "akid", cc.AccessKeyId)

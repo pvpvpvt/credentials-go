@@ -3,6 +3,7 @@ package credentials
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"time"
 
@@ -29,7 +30,7 @@ type URLResponse struct {
 func newURLCredential(URL string) *URLCredentialsProvider {
 	credentialUpdater := new(credentialUpdater)
 	if URL == "" {
-		URL = os.Getenv("ALIBABA_CLOUD_CREDENTIALS_URI")
+		URL = os.Getenv(configure.EnvPrefix + "CREDENTIALS_URI")
 	}
 	return &URLCredentialsProvider{
 		URL:               URL,

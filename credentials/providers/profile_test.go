@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"path"
 	"testing"
@@ -89,7 +90,7 @@ private_key_file = ./pk_error.pem
 `
 
 func TestProfileCredentialsProviderBuilder(t *testing.T) {
-	rollback := utils.Memory("ALIBABA_CLOUD_PROFILE")
+	rollback := utils.Memory(configure.EnvPrefix + "PROFILE")
 	defer rollback()
 
 	// profile name from specified
@@ -98,14 +99,14 @@ func TestProfileCredentialsProviderBuilder(t *testing.T) {
 	assert.Equal(t, "custom", provider.profileName)
 
 	// profile name from env
-	os.Setenv("ALIBABA_CLOUD_PROFILE", "profile_from_env")
+	os.Setenv(configure.EnvPrefix+"PROFILE", "profile_from_env")
 	provider, err = NewProfileCredentialsProviderBuilder().Build()
 	assert.Nil(t, err)
 
 	assert.Equal(t, "profile_from_env", provider.profileName)
 
 	// profile name from default
-	os.Setenv("ALIBABA_CLOUD_PROFILE", "")
+	os.Setenv(configure.EnvPrefix+"PROFILE", "")
 	provider, err = NewProfileCredentialsProviderBuilder().Build()
 	assert.Nil(t, err)
 	assert.Equal(t, "default", provider.profileName)
@@ -198,7 +199,7 @@ func TestProfileCredentialsProvider_getCredentialsProvider(t *testing.T) {
 func TestProfileCredentialsProviderGetCredentials(t *testing.T) {
 	originHttpDo := httpDo
 	defer func() { httpDo = originHttpDo }()
-	rollback := utils.Memory("ALIBABA_CLOUD_CREDENTIALS_FILE")
+	rollback := utils.Memory(configure.EnvPrefix + "CREDENTIALS_FILE")
 	defer func() {
 		getHomePath = utils.GetHomePath
 		rollback()
@@ -221,15 +222,16 @@ func TestProfileCredentialsProviderGetCredentials(t *testing.T) {
 	provider, err = NewProfileCredentialsProviderBuilder().WithProfileName("custom").Build()
 	assert.Nil(t, err)
 	_, err = provider.GetCredentials()
-	assert.EqualError(t, err, "ERROR: Can not open fileopen /path/invalid/home/dir/.alibabacloud/credentials: no such file or directory")
+	var pathSuffix = configure.PATHCredentialFile[2:]
+	assert.EqualError(t, err, "ERROR: Can not open fileopen /path/invalid/home/dir/"+pathSuffix+": no such file or directory")
 
 	// testcase: specify credentials file with env
-	os.Setenv("ALIBABA_CLOUD_CREDENTIALS_FILE", "/path/to/credentials.invalid")
+	os.Setenv(configure.EnvPrefix+"CREDENTIALS_FILE", "/path/to/credentials.invalid")
 	provider, err = NewProfileCredentialsProviderBuilder().WithProfileName("custom").Build()
 	assert.Nil(t, err)
 	_, err = provider.GetCredentials()
 	assert.EqualError(t, err, "ERROR: Can not open fileopen /path/to/credentials.invalid: no such file or directory")
-	os.Unsetenv("ALIBABA_CLOUD_CREDENTIALS_FILE")
+	os.Unsetenv(configure.EnvPrefix + "CREDENTIALS_FILE")
 
 	// get from credentials file
 	getHomePath = func() string {

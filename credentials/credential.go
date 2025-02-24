@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"net/http"
 	"net/url"
 	"os"
@@ -205,7 +206,7 @@ func (s *Config) SetOIDCProviderArn(v string) *Config {
 
 func (s *Config) SetURLCredential(v string) *Config {
 	if v == "" {
-		v = os.Getenv("ALIBABA_CLOUD_CREDENTIALS_URI")
+		v = os.Getenv(configure.EnvPrefix + "CREDENTIALS_URI")
 	}
 	s.Url = &v
 	return s

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"net/http"
 	"os"
 	"time"
@@ -44,7 +45,7 @@ func (builder *URLCredentialsProviderBuilder) WithHttpOptions(httpOptions *HttpO
 func (builder *URLCredentialsProviderBuilder) Build() (provider *URLCredentialsProvider, err error) {
 
 	if builder.provider.url == "" {
-		builder.provider.url = os.Getenv("ALIBABA_CLOUD_CREDENTIALS_URI")
+		builder.provider.url = os.Getenv(configure.EnvPrefix + "CREDENTIALS_URI")
 	}
 
 	if builder.provider.url == "" {

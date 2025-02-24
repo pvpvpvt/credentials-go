@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"testing"
 
@@ -18,12 +19,12 @@ func TestConfig(t *testing.T) {
 	assert.Equal(t, "{\n   \"type\": null,\n   \"access_key_id\": null,\n   \"access_key_secret\": null,\n   \"security_token\": null,\n   \"bearer_token\": null,\n   \"oidc_provider_arn\": null,\n   \"oidc_token\": null,\n   \"role_arn\": null,\n   \"role_session_name\": null,\n   \"role_session_expiration\": null,\n   \"policy\": null,\n   \"external_id\": null,\n   \"sts_endpoint\": null,\n   \"role_name\": null,\n   \"enable_imds_v2\": null,\n   \"disable_imds_v1\": null,\n   \"metadata_token_duration\": null,\n   \"url\": null,\n   \"session_expiration\": null,\n   \"public_key_id\": null,\n   \"private_key_file\": null,\n   \"host\": null,\n   \"timeout\": null,\n   \"connect_timeout\": null,\n   \"proxy\": null,\n   \"inAdvanceScale\": null\n}", config.String())
 	assert.Equal(t, "{\n   \"type\": null,\n   \"access_key_id\": null,\n   \"access_key_secret\": null,\n   \"security_token\": null,\n   \"bearer_token\": null,\n   \"oidc_provider_arn\": null,\n   \"oidc_token\": null,\n   \"role_arn\": null,\n   \"role_session_name\": null,\n   \"role_session_expiration\": null,\n   \"policy\": null,\n   \"external_id\": null,\n   \"sts_endpoint\": null,\n   \"role_name\": null,\n   \"enable_imds_v2\": null,\n   \"disable_imds_v1\": null,\n   \"metadata_token_duration\": null,\n   \"url\": null,\n   \"session_expiration\": null,\n   \"public_key_id\": null,\n   \"private_key_file\": null,\n   \"host\": null,\n   \"timeout\": null,\n   \"connect_timeout\": null,\n   \"proxy\": null,\n   \"inAdvanceScale\": null\n}", config.GoString())
 
-	config.SetSTSEndpoint("sts.cn-hangzhou.aliyuncs.com")
-	assert.Equal(t, "sts.cn-hangzhou.aliyuncs.com", *config.STSEndpoint)
+	config.SetSTSEndpoint("sts.cn-hangzhou." + configure.DomainSuffix)
+	assert.Equal(t, "sts.cn-hangzhou."+configure.DomainSuffix, *config.STSEndpoint)
 }
 
 func TestNewCredentialWithNil(t *testing.T) {
-	rollback := utils.Memory(EnvVarAccessKeyId, EnvVarAccessKeySecret, "ALIBABA_CLOUD_CLI_PROFILE_DISABLED")
+	rollback := utils.Memory(EnvVarAccessKeyId, EnvVarAccessKeySecret, configure.EnvPrefix+"CLI_PROFILE_DISABLED")
 	defer func() {
 		rollback()
 	}()
@@ -37,7 +38,7 @@ func TestNewCredentialWithNil(t *testing.T) {
 
 	os.Unsetenv(EnvVarAccessKeyId)
 	os.Unsetenv(EnvVarAccessKeySecret)
-	os.Setenv("ALIBABA_CLOUD_CLI_PROFILE_DISABLED", "true")
+	os.Setenv(configure.EnvPrefix+"CLI_PROFILE_DISABLED", "true")
 
 	cred, err = NewCredential(nil)
 	assert.Nil(t, err)

@@ -2,6 +2,7 @@ package providers
 
 import (
 	"fmt"
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 )
 
@@ -24,21 +25,21 @@ func (builder *EnvironmentVariableCredentialsProviderBuilder) Build() (provider 
 }
 
 func (provider *EnvironmentVariableCredentialsProvider) GetCredentials() (cc *Credentials, err error) {
-	accessKeyId := os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")
+	accessKeyId := os.Getenv(configure.EnvPrefix + "ACCESS_KEY_ID")
 
 	if accessKeyId == "" {
-		err = fmt.Errorf("unable to get credentials from enviroment variables, Access key ID must be specified via environment variable (ALIBABA_CLOUD_ACCESS_KEY_ID)")
+		err = fmt.Errorf("unable to get credentials from enviroment variables, Access key ID must be specified via environment variable (" + configure.EnvPrefix + "ACCESS_KEY_ID)")
 		return
 	}
 
-	accessKeySecret := os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
+	accessKeySecret := os.Getenv(configure.EnvPrefix + "ACCESS_KEY_SECRET")
 
 	if accessKeySecret == "" {
-		err = fmt.Errorf("unable to get credentials from enviroment variables, Access key secret must be specified via environment variable (ALIBABA_CLOUD_ACCESS_KEY_SECRET)")
+		err = fmt.Errorf("unable to get credentials from enviroment variables, Access key secret must be specified via environment variable (" + configure.EnvPrefix + "ACCESS_KEY_SECRET)")
 		return
 	}
 
-	securityToken := os.Getenv("ALIBABA_CLOUD_SECURITY_TOKEN")
+	securityToken := os.Getenv(configure.EnvPrefix + "SECURITY_TOKEN")
 
 	cc = &Credentials{
 		AccessKeyId:     accessKeyId,

@@ -1,6 +1,7 @@
 package integeration
 
 import (
+	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"strconv"
 	"testing"
@@ -11,11 +12,11 @@ import (
 )
 
 const (
-	EnvVarSubAccessKeyId        = "SUB_ALICLOUD_ACCESS_KEY"
-	EnvVarSubAccessKeySecret    = "SUB_ALICLOUD_SECRET_KEY"
-	EnvVarRoleArn               = "ALICLOUD_ROLE_ARN"
-	EnvVarRoleSessionName       = "ALICLOUD_ROLE_SESSION_NAME"
-	EnvVarRoleSessionExpiration = "ALICLOUD_ROLE_SESSION_EXPIRATION"
+	EnvVarSubAccessKeyId        = "SUB_" + configure.CloudMarkerUpperCaseForSub + "_ACCESS_KEY"
+	EnvVarSubAccessKeySecret    = "SUB_" + configure.CloudMarkerUpperCaseForSub + "_SECRET_KEY"
+	EnvVarRoleArn               = configure.CloudMarkerUpperCaseForSub + "_ROLE_ARN"
+	EnvVarRoleSessionName       = configure.CloudMarkerUpperCaseForSub + "_ROLE_SESSION_NAME"
+	EnvVarRoleSessionExpiration = configure.CloudMarkerUpperCaseForSub + "_ROLE_SESSION_EXPIRATION"
 )
 
 func TestRAMRoleArn(t *testing.T) {
@@ -24,7 +25,7 @@ func TestRAMRoleArn(t *testing.T) {
 	if rawexpiration != "" {
 		expiration, _ = strconv.Atoi(rawexpiration)
 	}
-	// assume role fisrt time
+	// assume role first time
 	config := &credentials.Config{
 		Type:                  tea.String("ram_role_arn"),
 		AccessKeyId:           tea.String(os.Getenv(EnvVarSubAccessKeyId)),
@@ -42,7 +43,7 @@ func TestRAMRoleArn(t *testing.T) {
 	assert.NotNil(t, c.AccessKeySecret)
 	assert.NotNil(t, c.SecurityToken)
 
-	// asume role second time with pre sts
+	// assume role second time with pre sts
 	config2 := &credentials.Config{
 		Type:                  tea.String("ram_role_arn"),
 		AccessKeyId:           c.AccessKeyId,
@@ -65,9 +66,9 @@ func TestRAMRoleArn(t *testing.T) {
 func TestOidc(t *testing.T) {
 	config := &credentials.Config{
 		Type:              tea.String("oidc_role_arn"),
-		RoleArn:           tea.String(os.Getenv("ALIBABA_CLOUD_ROLE_ARN")),
-		OIDCProviderArn:   tea.String(os.Getenv("ALIBABA_CLOUD_OIDC_PROVIDER_ARN")),
-		OIDCTokenFilePath: tea.String(os.Getenv("ALIBABA_CLOUD_OIDC_TOKEN_FILE")),
+		RoleArn:           tea.String(os.Getenv(configure.EnvPrefix + "ROLE_ARN")),
+		OIDCProviderArn:   tea.String(os.Getenv(configure.EnvPrefix + "OIDC_PROVIDER_ARN")),
+		OIDCTokenFilePath: tea.String(os.Getenv(configure.EnvPrefix + "OIDC_TOKEN_FILE")),
 		RoleSessionName:   tea.String("credentials-go-test"),
 	}
 	cred, err := credentials.NewCredential(config)
