@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -18,9 +19,13 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"sort"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/aliyun/credentials-go/configure"
 )
 
 type uuid [16]byte
@@ -84,6 +89,16 @@ func Sha256WithRsa(source, secret string) string {
 	return base64.StdEncoding.EncodeToString(signature)
 }
 
+// HmacSHA256 return a []byte which has been hashed with SHA256
+func HmacSHA256Sign(stringToSign string, secret []byte) (_result []byte) {
+	h := hmac.New(sha256.New, secret)
+	_, err := h.Write([]byte(stringToSign))
+	if err != nil {
+		return nil
+	}
+	return h.Sum(nil)
+}
+
 // GetMD5Base64 returns a string which has been base64
 func GetMD5Base64(bytes []byte) (base64Value string) {
 	md5Ctx := md5.New()
@@ -135,6 +150,114 @@ func safeRandom(dest []byte) {
 	}
 }
 
+// Hex encode for byte array
+func HexEncode(raw []byte) string {
+	return hex.EncodeToString(raw)
+}
+
+func HashSHA256(raw []byte) []byte {
+	h := sha256.New()
+	h.Write(raw)
+	return h.Sum(nil)
+}
+
+func percentEncode(raw string) string {
+	uri := url.QueryEscape(raw)
+	uri = strings.Replace(uri, "+", "%20", -1)
+	uri = strings.Replace(uri, "*", "%2A", -1)
+	uri = strings.Replace(uri, "%7E", "~", -1)
+	return uri
+}
+
+func getSigningkey(secret string, product string, region string, date string) []byte {
+	sc1 := []byte(configure.SignPrefix + secret)
+	sc2 := HmacSHA256Sign(date, sc1)
+	sc3 := HmacSHA256Sign(region, sc2)
+	sc4 := HmacSHA256Sign(product, sc3)
+	return HmacSHA256Sign(configure.SignPrefix+"_request", sc4)
+}
+
+func GetAuthorization(pathname string, method string, query map[string]string, headers map[string]string, payload string, ak string, secret string, product string, region string, date string) (result string) {
+	signingkey := getSigningkey(secret, product, region, date)
+	signature := getSignature(pathname, method, query, headers, payload, signingkey)
+	signedHeaders := getSignedHeaders(headers)
+
+	signedHeadersStr := join(signedHeaders, ";")
+	result = configure.SignatureTypePrefix + "HMAC-SHA256 Credential=" + ak + "/" + date + "/" + region + "/" + product + "/" + configure.SignPrefix + "_request,SignedHeaders=" + signedHeadersStr + ",Signature=" + signature
+	return
+}
+
+func getSignature(pathname string, method string, query map[string]string, headers map[string]string, payload string, signingkey []byte) string {
+	canonicalURI := "/"
+	if pathname != "" {
+		canonicalURI = pathname
+	}
+	canonicalizedResource := buildCanonicalizedResource(query)
+	canonicalizedHeaders := buildCanonicalizedHeaders(headers)
+	signedHeaders := getSignedHeaders(headers)
+	signedHeadersStr := join(signedHeaders, ";")
+	stringToSign := method + "\n" + canonicalURI + "\n" + canonicalizedResource + "\n" + canonicalizedHeaders + "\n" + signedHeadersStr + "\n" + payload
+	hex := HexEncode(HashSHA256([]byte(stringToSign)))
+	stringToSign = configure.SignatureTypePrefix + "HMAC-SHA256\n" + hex
+	signature := HmacSHA256Sign(stringToSign, signingkey)
+	return HexEncode(signature)
+}
+
+func buildCanonicalizedResource(query map[string]string) string {
+	canonicalizedResource := ""
+	if query != nil {
+		queryArray := keySet(query)
+		sort.Strings(queryArray)
+		separator := ""
+		for _, key := range queryArray {
+			canonicalizedResource = canonicalizedResource + separator + percentEncode(key) + "="
+			if query[key] != "" {
+				canonicalizedResource = canonicalizedResource + percentEncode(query[key])
+			}
+			separator = "&"
+		}
+	}
+	return canonicalizedResource
+}
+
+func buildCanonicalizedHeaders(headers map[string]string) string {
+	canonicalizedHeaders := ""
+	sortedHeaders := getSignedHeaders(headers)
+
+	for _, header := range sortedHeaders {
+		canonicalizedHeaders = canonicalizedHeaders + header + ":" + strings.Trim(headers[header], " ") + "\n"
+	}
+	return canonicalizedHeaders
+}
+
+func getSignedHeaders(headers map[string]string) []string {
+	headersArray := keySet(headers)
+	sort.Strings(headersArray)
+	tmp := make([]string, 0)
+	for _, key := range headersArray {
+		lowerKey := strings.ToLower(key)
+		if strings.HasPrefix(lowerKey, "x-acs-") {
+			tmp = append(tmp, lowerKey)
+		}
+	}
+	return tmp
+}
+
+func GetRegion(endpoint string) string {
+	region := "center"
+	if endpoint != "" {
+		strs := strings.Split(endpoint, ":")
+		withoutPort := strs[0]
+		preRegion := strings.ReplaceAll(withoutPort, "."+configure.DomainSuffix, "")
+		nodes := strings.Split(preRegion, ".")
+		if len(nodes) == 2 {
+			region = nodes[1]
+		}
+	}
+
+	return region
+}
+
 func (u uuid) String() string {
 	buf := make([]byte, 36)
 
@@ -149,6 +272,24 @@ func (u uuid) String() string {
 	hex.Encode(buf[24:], u[10:])
 
 	return string(buf)
+}
+
+func join(raw []string, sep string) string {
+	res := ""
+	separator := ""
+	for _, value := range raw {
+		res = res + separator + value
+		separator = sep
+	}
+	return res
+}
+
+func keySet(raw map[string]string) []string {
+	slice := make([]string, len(raw))
+	for k := range raw {
+		slice = append(slice, k)
+	}
+	return slice
 }
 
 var processStartTime int64 = time.Now().UnixNano() / 1e6

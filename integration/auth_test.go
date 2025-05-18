@@ -1,10 +1,11 @@
 package integeration
 
 import (
-	"github.com/aliyun/credentials-go/configure"
 	"os"
 	"strconv"
 	"testing"
+
+	"github.com/aliyun/credentials-go/configure"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/aliyun/credentials-go/credentials"
@@ -12,11 +13,11 @@ import (
 )
 
 const (
-	EnvVarSubAccessKeyId        = "SUB_" + configure.CloudMarkerUpperCaseForSub + "_ACCESS_KEY"
-	EnvVarSubAccessKeySecret    = "SUB_" + configure.CloudMarkerUpperCaseForSub + "_SECRET_KEY"
-	EnvVarRoleArn               = configure.CloudMarkerUpperCaseForSub + "_ROLE_ARN"
-	EnvVarRoleSessionName       = configure.CloudMarkerUpperCaseForSub + "_ROLE_SESSION_NAME"
-	EnvVarRoleSessionExpiration = configure.CloudMarkerUpperCaseForSub + "_ROLE_SESSION_EXPIRATION"
+	EnvVarSubAccessKeyId        = "SUB_" + configure.EnvPrefix + "_ACCESS_KEY"
+	EnvVarSubAccessKeySecret    = "SUB_" + configure.EnvPrefix + "_SECRET_KEY"
+	EnvVarRoleArn               = configure.EnvPrefix + "_ROLE_ARN"
+	EnvVarRoleSessionName       = configure.EnvPrefix + "_ROLE_SESSION_NAME"
+	EnvVarRoleSessionExpiration = configure.EnvPrefix + "_ROLE_SESSION_EXPIRATION"
 )
 
 func TestRAMRoleArn(t *testing.T) {

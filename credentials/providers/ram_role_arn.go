@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aliyun/credentials-go/configure"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aliyun/credentials-go/configure"
 
 	httputil "github.com/aliyun/credentials-go/credentials/internal/http"
 	"github.com/aliyun/credentials-go/credentials/internal/utils"
@@ -224,63 +224,51 @@ func (builder *RAMRoleARNCredentialsProviderBuilder) Build() (provider *RAMRoleA
 
 func (provider *RAMRoleARNCredentialsProvider) getCredentials(cc *Credentials) (session *sessionCredentials, err error) {
 	method := "POST"
+
+	date := utils.GetTimeInFormatISO8601()
+	headers := make(map[string]string)
+	headers["x-acs-version"] = "2015-04-01"
+	headers["x-acs-action"] = "AssumeRole"
+	headers["accept"] = "application/json"
+	headers["x-acs-date"] = date
+	headers["x-acs-signature-nonce"] = utils.GetNonce()
+	headers["x-acs-accesskey-id"] = cc.AccessKeyId
+	if cc.SecurityToken != "" {
+		headers["x-acs-security-token"] = cc.SecurityToken
+	}
+	headers["x-acs-credentials-provider"] = cc.ProviderName
+	headers["Accept-Encoding"] = "identity"
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	queries := make(map[string]string)
+	queries["RoleArn"] = provider.roleArn
+	if provider.policy != "" {
+		queries["Policy"] = provider.policy
+	}
+	if provider.externalId != "" {
+		queries["ExternalId"] = provider.externalId
+	}
+	queries["RoleSessionName"] = provider.roleSessionName
+	queries["DurationSeconds"] = strconv.Itoa(provider.durationSeconds)
+
+	hashedRequestPayload := utils.HexEncode(utils.HashSHA256([]byte("")))
+	headers["x-acs-content-sha256"] = hashedRequestPayload
+
 	req := &httputil.Request{
 		Method:   method,
 		Protocol: "https",
 		Host:     provider.stsEndpoint,
-		Headers:  map[string]string{},
+		Headers:  headers,
 	}
-
-	queries := make(map[string]string)
-	queries["Version"] = "2015-04-01"
-	queries["Action"] = "AssumeRole"
-	queries["Format"] = "JSON"
-	queries["Timestamp"] = utils.GetTimeInFormatISO8601()
-	queries["SignatureMethod"] = "HMAC-SHA1"
-	queries["SignatureVersion"] = "1.0"
-	queries["SignatureNonce"] = utils.GetNonce()
-	queries["AccessKeyId"] = cc.AccessKeyId
-
-	if cc.SecurityToken != "" {
-		queries["SecurityToken"] = cc.SecurityToken
-	}
-
-	bodyForm := make(map[string]string)
-	bodyForm["RoleArn"] = provider.roleArn
-	if provider.policy != "" {
-		bodyForm["Policy"] = provider.policy
-	}
-	if provider.externalId != "" {
-		bodyForm["ExternalId"] = provider.externalId
-	}
-	bodyForm["RoleSessionName"] = provider.roleSessionName
-	bodyForm["DurationSeconds"] = strconv.Itoa(provider.durationSeconds)
-	req.Form = bodyForm
-
-	// caculate signature
-	signParams := make(map[string]string)
-	for key, value := range queries {
-		signParams[key] = value
-	}
-	for key, value := range bodyForm {
-		signParams[key] = value
-	}
-
-	stringToSign := utils.GetURLFormedMap(signParams)
-	stringToSign = strings.Replace(stringToSign, "+", "%20", -1)
-	stringToSign = strings.Replace(stringToSign, "*", "%2A", -1)
-	stringToSign = strings.Replace(stringToSign, "%7E", "~", -1)
-	stringToSign = url.QueryEscape(stringToSign)
-	stringToSign = method + "&%2F&" + stringToSign
-	secret := cc.AccessKeySecret + "&"
-	queries["Signature"] = utils.ShaHmac1(stringToSign, secret)
 
 	req.Queries = queries
 
-	// set headers
-	req.Headers["Accept-Encoding"] = "identity"
-	req.Headers["Content-Type"] = "application/x-www-form-urlencoded"
-	req.Headers["x-acs-credentials-provider"] = cc.ProviderName
+	// caculate signature
+	dateNew := date[0:9]
+	dateNew = strings.ReplaceAll(dateNew, "-", "")
+	region := utils.GetRegion(provider.stsEndpoint)
+
+	req.Headers["Authorization"] = utils.GetAuthorization("/", "GET", queries, headers, hashedRequestPayload, cc.AccessKeyId, cc.AccessKeySecret, "Ste", region, dateNew)
 
 	connectTimeout := 5 * time.Second
 	readTimeout := 10 * time.Second

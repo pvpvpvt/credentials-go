@@ -15,36 +15,36 @@ func TestRequest(t *testing.T) {
 	req := &Request{
 		Method:   "GET",
 		Protocol: "http",
-		Host:     "www.aliyun.com",
+		Host:     "www.example.com",
 		Path:     "/",
 	}
-	assert.Equal(t, "GET http://www.aliyun.com/", req.BuildRequestURL())
+	assert.Equal(t, "GET http://www.example.com/", req.BuildRequestURL())
 
 	req = &Request{
 		Method: "GET",
-		URL:    "http://www.aliyun.com",
+		URL:    "http://www.example.com",
 		Path:   "/",
 	}
-	assert.Equal(t, "GET http://www.aliyun.com", req.BuildRequestURL())
+	assert.Equal(t, "GET http://www.example.com", req.BuildRequestURL())
 
 	// With query
 	req = &Request{
 		Method:   "GET",
 		Protocol: "http",
-		Host:     "www.aliyun.com",
+		Host:     "www.example.com",
 		Path:     "/",
 		Queries: map[string]string{
 			"spm": "test",
 		},
 	}
-	assert.Equal(t, "GET http://www.aliyun.com/?spm=test", req.BuildRequestURL())
+	assert.Equal(t, "GET http://www.example.com/?spm=test", req.BuildRequestURL())
 }
 
 func TestDoGet(t *testing.T) {
 	req := &Request{
 		Method:   "GET",
 		Protocol: "http",
-		Host:     "www.aliyun.com",
+		Host:     "www.example.com",
 		Path:     "/",
 	}
 	res, err := Do(req)
@@ -55,7 +55,7 @@ func TestDoGet(t *testing.T) {
 
 	req = &Request{
 		Method: "GET",
-		URL:    "http://www.aliyun.com",
+		URL:    "http://www.example.com",
 	}
 	res, err = Do(req)
 	assert.Nil(t, err)
@@ -68,7 +68,7 @@ func TestDoPost(t *testing.T) {
 	req := &Request{
 		Method:   "POST",
 		Protocol: "http",
-		Host:     "www.aliyun.com",
+		Host:     "www.example.com",
 		Path:     "/",
 		Form: map[string]string{
 			"URL": "HI",
@@ -104,7 +104,7 @@ func TestDoWithError(t *testing.T) {
 	req := &Request{
 		Method:   "POST",
 		Protocol: "http",
-		Host:     "www.aliyun.com",
+		Host:     "www.example.com",
 		Path:     "/",
 		Form: map[string]string{
 			"URL": "HI",
@@ -155,7 +155,7 @@ func TestDoWithProxy(t *testing.T) {
 	req := &Request{
 		Method:   "POST",
 		Protocol: "http",
-		Host:     "www.aliyun.com",
+		Host:     "www.example.com",
 		Path:     "/",
 		Form: map[string]string{
 			"URL": "HI",
@@ -179,7 +179,7 @@ func TestDoWithConnectTimeout(t *testing.T) {
 	req := &Request{
 		Method:   "POST",
 		Protocol: "http",
-		Host:     "www.aliyun.com",
+		Host:     "www.example.com",
 		Path:     "/",
 		Form: map[string]string{
 			"URL": "HI",
@@ -198,7 +198,7 @@ func TestDoWithReadTimeout(t *testing.T) {
 	req := &Request{
 		Method:      "POST",
 		Protocol:    "http",
-		Host:        "www.aliyun.com",
+		Host:        "www.example.com",
 		Path:        "/",
 		ReadTimeout: 1 * time.Nanosecond,
 	}

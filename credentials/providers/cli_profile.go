@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aliyun/credentials-go/configure"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/aliyun/credentials-go/configure"
 
 	"github.com/aliyun/credentials-go/credentials/internal/utils"
 )

@@ -1,22 +1,11 @@
 package credentials
 
 import (
-	"bufio"
 	"errors"
-	"fmt"
-	"github.com/aliyun/credentials-go/configure"
-	"net/http"
-	"net/url"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/alibabacloud-go/debug/debug"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/aliyun/credentials-go/credentials/internal/utils"
 	"github.com/aliyun/credentials-go/credentials/providers"
-	"github.com/aliyun/credentials-go/credentials/request"
-	"github.com/aliyun/credentials-go/credentials/response"
 )
 
 var debuglog = debug.Init("credential")
@@ -27,14 +16,6 @@ var hookParse = func(err error) error {
 
 // Credential is an interface for getting actual credential
 type Credential interface {
-	// Deprecated: GetAccessKeyId is deprecated, use GetCredential instead of.
-	GetAccessKeyId() (*string, error)
-	// Deprecated: GetAccessKeySecret is deprecated, use GetCredential instead of.
-	GetAccessKeySecret() (*string, error)
-	// Deprecated: GetSecurityToken is deprecated, use GetCredential instead of.
-	GetSecurityToken() (*string, error)
-	GetBearerToken() *string
-	GetType() *string
 	GetCredential() (*CredentialModel, error)
 }
 
@@ -55,25 +36,16 @@ type Config struct {
 	RoleSessionExpiration *int    `json:"role_session_expiration"`
 	Policy                *string `json:"policy"`
 	ExternalId            *string `json:"external_id"`
-	STSEndpoint           *string `json:"sts_endpoint"`
+	StsEndpoint           *string `json:"sts_endpoint"`
 
 	// Used when the type is ecs_ram_role
-	RoleName *string `json:"role_name"`
-	// Deprecated
-	EnableIMDSv2  *bool `json:"enable_imds_v2"`
-	DisableIMDSv1 *bool `json:"disable_imds_v1"`
-	// Deprecated
-	MetadataTokenDuration *int `json:"metadata_token_duration"`
+	RoleName      *string `json:"role_name"`
+	DisableIMDSv1 *bool   `json:"disable_imds_v1"`
 
 	// Used when the type is credentials_uri
 	Url *string `json:"url"`
 
-	// Deprecated
-	// Used when the type is rsa_key_pair
-	SessionExpiration *int    `json:"session_expiration"`
-	PublicKeyId       *string `json:"public_key_id"`
-	PrivateKeyFile    *string `json:"private_key_file"`
-	Host              *string `json:"host"`
+	Host *string `json:"host"`
 
 	// Read timeout, in milliseconds.
 	// The default value for ecs_ram_role is 1000ms, the default value for ram_role_arn is 5000ms, and the default value for oidc_role_arn is 5000ms.
@@ -119,38 +91,13 @@ func (s *Config) SetRoleSessionName(v string) *Config {
 	return s
 }
 
-func (s *Config) SetPublicKeyId(v string) *Config {
-	s.PublicKeyId = &v
-	return s
-}
-
 func (s *Config) SetRoleName(v string) *Config {
 	s.RoleName = &v
 	return s
 }
 
-func (s *Config) SetEnableIMDSv2(v bool) *Config {
-	s.EnableIMDSv2 = &v
-	return s
-}
-
 func (s *Config) SetDisableIMDSv1(v bool) *Config {
 	s.DisableIMDSv1 = &v
-	return s
-}
-
-func (s *Config) SetMetadataTokenDuration(v int) *Config {
-	s.MetadataTokenDuration = &v
-	return s
-}
-
-func (s *Config) SetSessionExpiration(v int) *Config {
-	s.SessionExpiration = &v
-	return s
-}
-
-func (s *Config) SetPrivateKeyFile(v string) *Config {
-	s.PrivateKeyFile = &v
 	return s
 }
 
@@ -205,15 +152,12 @@ func (s *Config) SetOIDCProviderArn(v string) *Config {
 }
 
 func (s *Config) SetURLCredential(v string) *Config {
-	if v == "" {
-		v = os.Getenv(configure.EnvPrefix + "CREDENTIALS_URI")
-	}
 	s.Url = &v
 	return s
 }
 
-func (s *Config) SetSTSEndpoint(v string) *Config {
-	s.STSEndpoint = &v
+func (s *Config) SetStsEndpoint(v string) *Config {
+	s.StsEndpoint = &v
 	return s
 }
 
@@ -233,7 +177,19 @@ func NewCredential(config *Config) (credential Credential, err error) {
 	}
 	switch tea.StringValue(config.Type) {
 	case "credentials_uri":
-		credential = newURLCredential(tea.StringValue(config.Url))
+		provider, err := providers.NewURLCredentialsProviderBuilderBuilder().
+			WithUrl(tea.StringValue(config.Url)).
+			WithHttpOptions(&providers.HttpOptions{
+				Proxy:          tea.StringValue(config.Proxy),
+				ReadTimeout:    tea.IntValue(config.Timeout),
+				ConnectTimeout: tea.IntValue(config.ConnectTimeout),
+			}).
+			Build()
+
+		if err != nil {
+			return nil, err
+		}
+		credential = FromCredentialsProvider("credentials_uri", provider)
 	case "oidc_role_arn":
 		provider, err := providers.NewOIDCCredentialsProviderBuilder().
 			WithRoleArn(tea.StringValue(config.RoleArn)).
@@ -242,7 +198,7 @@ func NewCredential(config *Config) (credential Credential, err error) {
 			WithDurationSeconds(tea.IntValue(config.RoleSessionExpiration)).
 			WithPolicy(tea.StringValue(config.Policy)).
 			WithRoleSessionName(tea.StringValue(config.RoleSessionName)).
-			WithSTSEndpoint(tea.StringValue(config.STSEndpoint)).
+			WithSTSEndpoint(tea.StringValue(config.StsEndpoint)).
 			WithHttpOptions(&providers.HttpOptions{
 				Proxy:          tea.StringValue(config.Proxy),
 				ReadTimeout:    tea.IntValue(config.Timeout),
@@ -312,7 +268,7 @@ func NewCredential(config *Config) (credential Credential, err error) {
 			WithPolicy(tea.StringValue(config.Policy)).
 			WithDurationSeconds(tea.IntValue(config.RoleSessionExpiration)).
 			WithExternalId(tea.StringValue(config.ExternalId)).
-			WithStsEndpoint(tea.StringValue(config.STSEndpoint)).
+			WithStsEndpoint(tea.StringValue(config.StsEndpoint)).
 			WithHttpOptions(&providers.HttpOptions{
 				Proxy:          tea.StringValue(config.Proxy),
 				ReadTimeout:    tea.IntValue(config.Timeout),
@@ -324,37 +280,6 @@ func NewCredential(config *Config) (credential Credential, err error) {
 		}
 
 		credential = FromCredentialsProvider("ram_role_arn", provider)
-	case "rsa_key_pair":
-		err = checkRSAKeyPair(config)
-		if err != nil {
-			return
-		}
-		file, err1 := os.Open(tea.StringValue(config.PrivateKeyFile))
-		if err1 != nil {
-			err = fmt.Errorf("InvalidPath: Can not open PrivateKeyFile, err is %s", err1.Error())
-			return
-		}
-		defer file.Close()
-		var privateKey string
-		scan := bufio.NewScanner(file)
-		for scan.Scan() {
-			if strings.HasPrefix(scan.Text(), "----") {
-				continue
-			}
-			privateKey += scan.Text() + "\n"
-		}
-		runtime := &utils.Runtime{
-			Host:           tea.StringValue(config.Host),
-			Proxy:          tea.StringValue(config.Proxy),
-			ReadTimeout:    tea.IntValue(config.Timeout),
-			ConnectTimeout: tea.IntValue(config.ConnectTimeout),
-			STSEndpoint:    tea.StringValue(config.STSEndpoint),
-		}
-		credential = newRsaKeyPairCredential(
-			privateKey,
-			tea.StringValue(config.PublicKeyId),
-			tea.IntValue(config.SessionExpiration),
-			runtime)
 	case "bearer":
 		if tea.StringValue(config.BearerToken) == "" {
 			err = errors.New("BearerToken cannot be empty")
@@ -368,114 +293,9 @@ func NewCredential(config *Config) (credential Credential, err error) {
 	return credential, nil
 }
 
-func checkRSAKeyPair(config *Config) (err error) {
-	if tea.StringValue(config.PrivateKeyFile) == "" {
-		err = errors.New("PrivateKeyFile cannot be empty")
-		return
-	}
-	if tea.StringValue(config.PublicKeyId) == "" {
-		err = errors.New("PublicKeyId cannot be empty")
-		return
-	}
-	return
-}
-
-func doAction(request *request.CommonRequest, runtime *utils.Runtime) (content []byte, err error) {
-	var urlEncoded string
-	if request.BodyParams != nil {
-		urlEncoded = utils.GetURLFormedMap(request.BodyParams)
-	}
-	httpRequest, err := http.NewRequest(request.Method, request.URL, strings.NewReader(urlEncoded))
-	if err != nil {
-		return
-	}
-	httpRequest.Proto = "HTTP/1.1"
-	httpRequest.Host = request.Domain
-	debuglog("> %s %s %s", httpRequest.Method, httpRequest.URL.RequestURI(), httpRequest.Proto)
-	debuglog("> Host: %s", httpRequest.Host)
-	for key, value := range request.Headers {
-		if value != "" {
-			debuglog("> %s: %s", key, value)
-			httpRequest.Header[key] = []string{value}
-		}
-	}
-	debuglog(">")
-	httpClient := &http.Client{}
-	httpClient.Timeout = time.Duration(runtime.ReadTimeout) * time.Second
-	proxy := &url.URL{}
-	if runtime.Proxy != "" {
-		proxy, err = url.Parse(runtime.Proxy)
-		if err != nil {
-			return
-		}
-	}
-	transport := &http.Transport{}
-	if proxy != nil && runtime.Proxy != "" {
-		transport.Proxy = http.ProxyURL(proxy)
-	}
-	transport.DialContext = utils.Timeout(time.Duration(runtime.ConnectTimeout) * time.Second)
-	httpClient.Transport = transport
-	httpResponse, err := hookDo(httpClient.Do)(httpRequest)
-	if err != nil {
-		return
-	}
-	debuglog("< %s %s", httpResponse.Proto, httpResponse.Status)
-	for key, value := range httpResponse.Header {
-		debuglog("< %s: %v", key, strings.Join(value, ""))
-	}
-	debuglog("<")
-
-	resp := &response.CommonResponse{}
-	err = hookParse(resp.ParseFromHTTPResponse(httpResponse))
-	if err != nil {
-		return
-	}
-	debuglog("%s", resp.GetHTTPContentString())
-	if resp.GetHTTPStatus() != http.StatusOK {
-		err = fmt.Errorf("httpStatus: %d, message = %s", resp.GetHTTPStatus(), resp.GetHTTPContentString())
-		return
-	}
-	return resp.GetHTTPContentBytes(), nil
-}
-
 type credentialsProviderWrap struct {
 	typeName string
 	provider providers.CredentialsProvider
-}
-
-// Deprecated: use GetCredential() instead of
-func (cp *credentialsProviderWrap) GetAccessKeyId() (accessKeyId *string, err error) {
-	cc, err := cp.provider.GetCredentials()
-	if err != nil {
-		return
-	}
-	accessKeyId = &cc.AccessKeyId
-	return
-}
-
-// Deprecated: use GetCredential() instead of
-func (cp *credentialsProviderWrap) GetAccessKeySecret() (accessKeySecret *string, err error) {
-	cc, err := cp.provider.GetCredentials()
-	if err != nil {
-		return
-	}
-	accessKeySecret = &cc.AccessKeySecret
-	return
-}
-
-// Deprecated: use GetCredential() instead of
-func (cp *credentialsProviderWrap) GetSecurityToken() (securityToken *string, err error) {
-	cc, err := cp.provider.GetCredentials()
-	if err != nil {
-		return
-	}
-	securityToken = &cc.SecurityToken
-	return
-}
-
-// Deprecated: don't use it
-func (cp *credentialsProviderWrap) GetBearerToken() (bearerToken *string) {
-	return tea.String("")
 }
 
 // Get credentials
